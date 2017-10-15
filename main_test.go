@@ -3,9 +3,12 @@ package main
 import (
 	"github.com/coderanger/kubernetes-github-authn/mocks"
 
+	"bytes"
 	"errors"
+	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -270,7 +273,7 @@ func TestAuthenticate(t *testing.T) {
 	assert.Equal(t, ui.Groups, []string{"github:kubernetes-github-authn-testorg", "github:kubernetes-github-authn-testorg:admins"})
 }
 
-func TestNoOrgAuthenticate(t *testing.T) {
+func TestNotOrgAuthenticate(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping internet-required tests due to -short")
 	}
@@ -287,4 +290,50 @@ func TestNoOrgAuthenticate(t *testing.T) {
 	assert.Equal(t, ui.Username, "kubernetes-github-authn-test")
 	assert.Equal(t, ui.UID, "32822820")
 	assert.Nil(t, ui.Groups)
+}
+
+func TestAuthenticationHandler(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping internet-required tests due to -short")
+	}
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	defer func() {
+		log.SetOutput(os.Stderr)
+	}()
+	json := `{
+  "apiVersion": "authentication.k8s.io/v1beta1",
+  "kind": "TokenReview",
+  "spec": {
+    "token": "` + OrgToken + `"
+  }
+}`
+	req := httptest.NewRequest("POST", "http://hook/authenticate", strings.NewReader(json))
+	rr := httptest.NewRecorder()
+	authenticationHandler(rr, req)
+	assert.Equal(t, rr.Code, 200)
+	assert.Equal(t, rr.Body.String(), `{"apiVersion":"authentication.k8s.io/v1beta1","kind":"TokenReview","status":{"authenticated":true,"user":{"username":"kubernetes-github-authn-test","uid":"32822820","groups":["github:kubernetes-github-authn-testorg","github:kubernetes-github-authn-testorg:admins"]}}}`+"\n")
+}
+
+func TestNotOrgAuthenticationHandler(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping internet-required tests due to -short")
+	}
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	defer func() {
+		log.SetOutput(os.Stderr)
+	}()
+	json := `{
+  "apiVersion": "authentication.k8s.io/v1beta1",
+  "kind": "TokenReview",
+  "spec": {
+    "token": "` + NotOrgToken + `"
+  }
+}`
+	req := httptest.NewRequest("POST", "http://hook/authenticate", strings.NewReader(json))
+	rr := httptest.NewRecorder()
+	authenticationHandler(rr, req)
+	assert.Equal(t, rr.Code, 200)
+	assert.Equal(t, rr.Body.String(), `{"apiVersion":"authentication.k8s.io/v1beta1","kind":"TokenReview","status":{"authenticated":true,"user":{"username":"kubernetes-github-authn-test","uid":"32822820"}}}`+"\n")
 }
