@@ -15,8 +15,8 @@ import (
 	authentication "k8s.io/client-go/pkg/apis/authentication/v1beta1"
 )
 
-const OrgToken = "072bf484f3a776730d1fb0a4c27718a25a45db13"
-const NotOrgToken = "e7aa087b9c1a0d102f4f10f1e0201dbb94753f26"
+const OrgToken = "9b2bf89b982258bb9b87" + "db660a13cc332b1b6383"
+const NotOrgToken = "22968b620b6e48576a5c" + "f32b4de27a8752968c29"
 
 func TestAuthenticationToken(t *testing.T) {
 	json := `{
