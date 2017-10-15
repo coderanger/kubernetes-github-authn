@@ -262,26 +262,24 @@ func TestAuthenticate(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping internet-required tests due to -short")
 	}
-	json := tokenReview(OrgToken)
-	req := httptest.NewRequest("POST", "http://hook/authenticate", strings.NewReader(json))
-	ui, err := authenticate(req)
-	assert.Nil(t, err)
-	assert.Equal(t, ui.Username, "kubernetes-github-authn-test")
-	assert.Equal(t, ui.UID, "32822820")
-	assert.Equal(t, ui.Groups, []string{"github:kubernetes-github-authn-testorg", "github:kubernetes-github-authn-testorg:admins"})
-}
-
-func TestNotOrgAuthenticate(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping internet-required tests due to -short")
+	tests := []struct {
+		in  string
+		err bool
+		out *authentication.UserInfo
+	}{
+		{tokenReview(OrgToken), false, &authentication.UserInfo{Username: "kubernetes-github-authn-test", UID: "32822820", Groups: []string{"github:kubernetes-github-authn-testorg", "github:kubernetes-github-authn-testorg:admins"}}},
+		{tokenReview(NotOrgToken), false, &authentication.UserInfo{Username: "kubernetes-github-authn-test", UID: "32822820", Groups: nil}},
 	}
-	json := tokenReview(NotOrgToken)
-	req := httptest.NewRequest("POST", "http://hook/authenticate", strings.NewReader(json))
-	ui, err := authenticate(req)
-	assert.Nil(t, err)
-	assert.Equal(t, ui.Username, "kubernetes-github-authn-test")
-	assert.Equal(t, ui.UID, "32822820")
-	assert.Nil(t, ui.Groups)
+	for _, test := range tests {
+		req := httptest.NewRequest("POST", "http://hook/authenticate", strings.NewReader(test.in))
+		ui, err := authenticate(req)
+		if test.err {
+			assert.NotNil(t, err)
+		} else {
+			assert.Nil(t, err)
+		}
+		assert.Equal(t, ui, test.out)
+	}
 }
 
 func TestAuthenticationHandler(t *testing.T) {
