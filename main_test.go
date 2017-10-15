@@ -21,14 +21,18 @@ import (
 const OrgToken = "9b2bf89b982258bb9b87" + "db660a13cc332b1b6383"
 const NotOrgToken = "22968b620b6e48576a5c" + "f32b4de27a8752968c29"
 
-func TestAuthenticationToken(t *testing.T) {
-	json := `{
+func tokenReview(token string) string {
+	return `{
   "apiVersion": "authentication.k8s.io/v1beta1",
   "kind": "TokenReview",
   "spec": {
-    "token": "mytoken"
+    "token": "` + token + `"
   }
 }`
+}
+
+func TestAuthenticationToken(t *testing.T) {
+	json := tokenReview("mytoken")
 	req := httptest.NewRequest("POST", "http://hook/authenticate", strings.NewReader(json))
 	ts, err := authenticationToken(req)
 	assert.Nil(t, err)
@@ -258,13 +262,7 @@ func TestAuthenticate(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping internet-required tests due to -short")
 	}
-	json := `{
-  "apiVersion": "authentication.k8s.io/v1beta1",
-  "kind": "TokenReview",
-  "spec": {
-    "token": "` + OrgToken + `"
-  }
-}`
+	json := tokenReview(OrgToken)
 	req := httptest.NewRequest("POST", "http://hook/authenticate", strings.NewReader(json))
 	ui, err := authenticate(req)
 	assert.Nil(t, err)
@@ -277,13 +275,7 @@ func TestNotOrgAuthenticate(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping internet-required tests due to -short")
 	}
-	json := `{
-  "apiVersion": "authentication.k8s.io/v1beta1",
-  "kind": "TokenReview",
-  "spec": {
-    "token": "` + NotOrgToken + `"
-  }
-}`
+	json := tokenReview(NotOrgToken)
 	req := httptest.NewRequest("POST", "http://hook/authenticate", strings.NewReader(json))
 	ui, err := authenticate(req)
 	assert.Nil(t, err)
@@ -301,39 +293,21 @@ func TestAuthenticationHandler(t *testing.T) {
 	defer func() {
 		log.SetOutput(os.Stderr)
 	}()
-	json := `{
-  "apiVersion": "authentication.k8s.io/v1beta1",
-  "kind": "TokenReview",
-  "spec": {
-    "token": "` + OrgToken + `"
-  }
-}`
-	req := httptest.NewRequest("POST", "http://hook/authenticate", strings.NewReader(json))
-	rr := httptest.NewRecorder()
-	authenticationHandler(rr, req)
-	assert.Equal(t, rr.Code, 200)
-	assert.Equal(t, rr.Body.String(), `{"apiVersion":"authentication.k8s.io/v1beta1","kind":"TokenReview","status":{"authenticated":true,"user":{"username":"kubernetes-github-authn-test","uid":"32822820","groups":["github:kubernetes-github-authn-testorg","github:kubernetes-github-authn-testorg:admins"]}}}`+"\n")
-}
-
-func TestNotOrgAuthenticationHandler(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping internet-required tests due to -short")
+	tests := []struct {
+		in     string
+		status int
+		out    string
+	}{
+		{tokenReview(OrgToken), 200, `{"apiVersion":"authentication.k8s.io/v1beta1","kind":"TokenReview","status":{"authenticated":true,"user":{"username":"kubernetes-github-authn-test","uid":"32822820","groups":["github:kubernetes-github-authn-testorg","github:kubernetes-github-authn-testorg:admins"]}}}`},
+		{tokenReview(NotOrgToken), 200, `{"apiVersion":"authentication.k8s.io/v1beta1","kind":"TokenReview","status":{"authenticated":true,"user":{"username":"kubernetes-github-authn-test","uid":"32822820"}}}`},
+		{"{", 401, `{"apiVersion":"authentication.k8s.io/v1beta1","kind":"TokenReview","status":{"user":{},"error":"unexpected EOF"}}`},
+		{tokenReview("notatoken"), 401, `{"apiVersion":"authentication.k8s.io/v1beta1","kind":"TokenReview","status":{"user":{},"error":"GET https://api.github.com/user: 401 Bad credentials []"}}`},
 	}
-	var buf bytes.Buffer
-	log.SetOutput(&buf)
-	defer func() {
-		log.SetOutput(os.Stderr)
-	}()
-	json := `{
-  "apiVersion": "authentication.k8s.io/v1beta1",
-  "kind": "TokenReview",
-  "spec": {
-    "token": "` + NotOrgToken + `"
-  }
-}`
-	req := httptest.NewRequest("POST", "http://hook/authenticate", strings.NewReader(json))
-	rr := httptest.NewRecorder()
-	authenticationHandler(rr, req)
-	assert.Equal(t, rr.Code, 200)
-	assert.Equal(t, rr.Body.String(), `{"apiVersion":"authentication.k8s.io/v1beta1","kind":"TokenReview","status":{"authenticated":true,"user":{"username":"kubernetes-github-authn-test","uid":"32822820"}}}`+"\n")
+	for _, test := range tests {
+		req := httptest.NewRequest("POST", "http://hook/authenticate", strings.NewReader(test.in))
+		rr := httptest.NewRecorder()
+		authenticationHandler(rr, req)
+		assert.Equal(t, rr.Code, test.status)
+		assert.Equal(t, rr.Body.String(), test.out+"\n")
+	}
 }
