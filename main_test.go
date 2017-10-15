@@ -264,20 +264,15 @@ func TestAuthenticate(t *testing.T) {
 	}
 	tests := []struct {
 		in  string
-		err bool
 		out *authentication.UserInfo
 	}{
-		{tokenReview(OrgToken), false, &authentication.UserInfo{Username: "kubernetes-github-authn-test", UID: "32822820", Groups: []string{"github:kubernetes-github-authn-testorg", "github:kubernetes-github-authn-testorg:admins"}}},
-		{tokenReview(NotOrgToken), false, &authentication.UserInfo{Username: "kubernetes-github-authn-test", UID: "32822820", Groups: nil}},
+		{tokenReview(OrgToken), &authentication.UserInfo{Username: "kubernetes-github-authn-test", UID: "32822820", Groups: []string{"github:kubernetes-github-authn-testorg", "github:kubernetes-github-authn-testorg:admins"}}},
+		{tokenReview(NotOrgToken), &authentication.UserInfo{Username: "kubernetes-github-authn-test", UID: "32822820", Groups: nil}},
 	}
 	for _, test := range tests {
 		req := httptest.NewRequest("POST", "http://hook/authenticate", strings.NewReader(test.in))
 		ui, err := authenticate(req)
-		if test.err {
-			assert.NotNil(t, err)
-		} else {
-			assert.Nil(t, err)
-		}
+		assert.Nil(t, err)
 		assert.Equal(t, ui, test.out)
 	}
 }
