@@ -1,4 +1,4 @@
-package: github.com/oursky/kubernetes-github-authn
+package: github.com/coderanger/kubernetes-github-authn
 import:
 - package: github.com/google/go-github
   subpackages:
