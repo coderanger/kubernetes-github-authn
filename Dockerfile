@@ -1,7 +1,4 @@
-FROM alpine:3.4
-
-RUN apk --no-cache --update add ca-certificates
-
-COPY _output/main /boot
-
+FROM scratch
+ADD https://curl.haxx.se/ca/cacert.pem /etc/ssl/certs/
+COPY _output/main.linux /boot
 CMD ["/boot"]

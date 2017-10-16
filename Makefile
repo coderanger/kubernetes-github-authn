@@ -13,7 +13,8 @@ endif
 
 .PHONY: build
 build:
-	$(GO_RUN) go build -o _output/main main.go
+	CGO_ENABLED=0 $(GO_RUN) go build -a -installsuffix cgo -o _output/main main.go github.go
+	CGO_ENABLED=0 GOOS=linux $(GO_RUN) go build -a -installsuffix cgo -o _output/main.linux main.go github.go
 
 .PHONY: vendor
 vendor:
