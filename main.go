@@ -33,6 +33,9 @@ func checkUser(client GithubService, ui *authentication.UserInfo) error {
 }
 
 func checkOrgs(client GithubService, ui *authentication.UserInfo) error {
+	requiredOrg := os.Getenv("REQUIRED_ORG")
+	matchesRequiredOrg := requiredOrg == ""
+
 	opt := &github.ListOrgMembershipsOptions{
 		ListOptions: github.ListOptions{PerPage: 100},
 	}
@@ -47,11 +50,17 @@ func checkOrgs(client GithubService, ui *authentication.UserInfo) error {
 		}
 		for _, membership := range memberships {
 			ui.Groups = append(ui.Groups, "github:"+membership.Organization.GetLogin())
+			if membership.Organization.GetLogin() == requiredOrg {
+				matchesRequiredOrg = true
+			}
 		}
 		if resp.NextPage == 0 {
 			break
 		}
 		opt.Page = resp.NextPage
+	}
+	if !matchesRequiredOrg {
+		return fmt.Errorf("user %s is not a member of require organization %s", ui.Username, requiredOrg)
 	}
 	return nil
 }
@@ -109,7 +118,7 @@ func authenticate(r *http.Request) (*authentication.UserInfo, error) {
 func authenticationHandler(w http.ResponseWriter, r *http.Request) {
 	ui, err := authenticate(r)
 	if err != nil {
-		log.Println("[Error]", err.Error())
+		log.Printf("[Error] %s", err.Error())
 		w.WriteHeader(http.StatusUnauthorized)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"apiVersion": "authentication.k8s.io/v1beta1",
