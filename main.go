@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -144,10 +145,28 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/authenticate", authenticationHandler)
 	bindAddress := ":3000"
 	if port, ok := os.LookupEnv("PORT"); ok {
 		bindAddress = ":" + port
 	}
-	log.Fatal(http.ListenAndServe(bindAddress, nil))
+	mux := http.NewServeMux()
+	mux.HandleFunc("/authenticate", authenticationHandler)
+	cfg := &tls.Config{
+		MinVersion:               tls.VersionTLS12,
+		CurvePreferences:         []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
+		PreferServerCipherSuites: true,
+		CipherSuites: []uint16{
+			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+			tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+		},
+	}
+	srv := &http.Server{
+		Addr:         bindAddress,
+		Handler:      mux,
+		TLSConfig:    cfg,
+		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler), 0),
+	}
+	log.Fatal(srv.ListenAndServeTLS("/etc/ssl/webhook/tls.crt", "/etc/ssl/webhook/tls.key"))
 }
