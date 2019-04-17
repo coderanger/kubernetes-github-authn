@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/google/go-github/github"
 	"golang.org/x/oauth2"
@@ -130,7 +131,7 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) {
 			},
 		})
 	} else {
-		log.Printf("[Success] login as %s", ui.Username)
+		log.Printf("[Success] login as %s; groups %s", ui.Username, strings.Join(ui.Groups, ", "))
 		w.WriteHeader(http.StatusOK)
 		trs := authentication.TokenReviewStatus{
 			Authenticated: true,
