@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/google/go-github/github"
 	"golang.org/x/oauth2"
@@ -145,6 +146,29 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+const certPath = "/etc/ssl/webhook/tls.crt"
+const keyPath = "/etc/ssl/webhook/tls.key"
+
+var currentCert *tls.Certificate
+var currentCertTime time.Time
+
+func getCertificate(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+	info, err := os.Stat(certPath)
+	if err != nil {
+		return nil, err
+	}
+	// If the cached cert is out of date, reload it.
+	if info.ModTime().After(currentCertTime) {
+		cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+		if err != nil {
+			return nil, err
+		}
+		currentCert = &cert
+		currentCertTime = info.ModTime()
+	}
+	return currentCert, nil
+}
+
 func main() {
 	bindAddress := ":3000"
 	if port, ok := os.LookupEnv("PORT"); ok {
@@ -162,6 +186,7 @@ func main() {
 			tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
 			tls.TLS_RSA_WITH_AES_256_CBC_SHA,
 		},
+		GetCertificate: getCertificate,
 	}
 	srv := &http.Server{
 		Addr:         bindAddress,
@@ -169,5 +194,5 @@ func main() {
 		TLSConfig:    cfg,
 		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler), 0),
 	}
-	log.Fatal(srv.ListenAndServeTLS("/etc/ssl/webhook/tls.crt", "/etc/ssl/webhook/tls.key"))
+	log.Fatal(srv.ListenAndServeTLS("", ""))
 }
