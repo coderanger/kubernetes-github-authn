@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Config
+clusters:
+- name: github-authn
+cluster:
+  certificate-authority: /srv/kubernetes/github-authn/ca.crt
+  server: https://localhost:3000/authenticate
+users:
+- name: github-authn
+user: {}
+current-context: webhook
+contexts:
+- context:
+  cluster: github-authn
+  user: github-authn
+name: webhook

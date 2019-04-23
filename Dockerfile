@@ -10,5 +10,6 @@ RUN curl https://glide.sh/get | sh && \
 
 FROM scratch
 ADD https://curl.haxx.se/ca/cacert.pem /etc/ssl/certs/
+COPY manifests/webhook-config.yml /
 COPY --from=builder /go/src/github.com/coderanger/kubernetes-github-authn/_output/main /boot
 CMD ["/boot"]
