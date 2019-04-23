@@ -8,7 +8,7 @@ RUN curl https://glide.sh/get | sh && \
     glide install && \
     CGO_ENABLED=0 go build -a -installsuffix cgo -o _output/main main.go github.go
 
-FROM scratch
+FROM alpine
 ADD https://curl.haxx.se/ca/cacert.pem /etc/ssl/certs/
 COPY --from=builder /go/src/github.com/coderanger/kubernetes-github-authn/_output/main /boot
 CMD ["/boot"]
