@@ -168,7 +168,7 @@ func getCertificate(*tls.ClientHelloInfo) (*tls.Certificate, error) {
 		currentCert = &cert
 		currentCertTime = fileTime
 	} else {
-		log.Printf("[Cert] using cached certificate, file %v cache %v", fileTime, currentCert)
+		log.Printf("[Cert] using cached certificate, file %v cache %v", fileTime, currentCertTime)
 	}
 	return currentCert, nil
 }
