@@ -158,13 +158,17 @@ func getCertificate(*tls.ClientHelloInfo) (*tls.Certificate, error) {
 		return nil, err
 	}
 	// If the cached cert is out of date, reload it.
-	if info.ModTime().After(currentCertTime) {
+	fileTime := info.ModTime()
+	if fileTime.After(currentCertTime) {
+		log.Printf("[Cert] Reloading certificate from %s", certPath)
 		cert, err := tls.LoadX509KeyPair(certPath, keyPath)
 		if err != nil {
 			return nil, err
 		}
 		currentCert = &cert
-		currentCertTime = info.ModTime()
+		currentCertTime = fileTime
+	} else {
+		log.Printf("[Cert] using cached certificate, file %v cache %v", fileTime, currentCert)
 	}
 	return currentCert, nil
 }
